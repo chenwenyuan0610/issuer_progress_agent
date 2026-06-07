@@ -1,0 +1,120 @@
+openapi: 3.1.0
+info:
+  title: Issuer Progress AI Tool API
+  version: 0.1.0
+servers:
+  - url: https://YOUR_DOMAIN_HERE
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+security:
+  - ApiKeyAuth: []
+paths:
+  /issuers/{issuer_name}:
+    get:
+      operationId: getIssuerProgress
+      summary: Get issuer progress by issuer name
+      parameters:
+        - name: issuer_name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Issuer progress
+  /issuers:
+    get:
+      operationId: listIssuers
+      summary: List issuers, optionally filtered by stage or risk level
+      parameters:
+        - name: stage
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: risk_level
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Issuer list
+    post:
+      operationId: createIssuer
+      summary: Create an issuer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Created issuer
+  /issuers/{issuer_name}/progress:
+    patch:
+      operationId: updateIssuerProgress
+      summary: Update issuer progress and append history
+      parameters:
+        - name: issuer_name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                current_stage:
+                  type: string
+                progress_status:
+                  type: string
+                latest_progress:
+                  type: string
+                next_action:
+                  type: string
+                risk_level:
+                  type: string
+                blocker:
+                  type: string
+                updated_by:
+                  type: string
+              required:
+                - latest_progress
+      responses:
+        '200':
+          description: Updated issuer
+  /issuers/{issuer_name}/notes:
+    post:
+      operationId: addIssuerNote
+      summary: Add a meeting, email, issue, or requirement note for an issuer
+      parameters:
+        - name: issuer_name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Created note
+  /reports/weekly:
+    get:
+      operationId: generateWeeklyReport
+      summary: Generate raw weekly report data for AI summarization
+      responses:
+        '200':
+          description: Weekly report data
