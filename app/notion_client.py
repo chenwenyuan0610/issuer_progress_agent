@@ -19,6 +19,7 @@ class NotionClient:
             "Notion-Version": settings.notion_version,
             "Content-Type": "application/json",
         }
+        self._data_source_cache: dict[str, str] = {}
 
     async def _request(self, method: str, path: str, json: dict[str, Any] | None = None) -> dict[str, Any]:
         async with httpx.AsyncClient(timeout=20.0) as client:
@@ -26,6 +27,47 @@ class NotionClient:
         if resp.status_code >= 400:
             raise NotionError(f"Notion API error {resp.status_code}: {resp.text}")
         return resp.json()
+
+    async def _resolve_data_source_id(self, label: str, database_id: str | None, configured_id: str | None) -> str:
+        if configured_id:
+            return configured_id
+        if not database_id:
+            raise NotionError(f"{label} data source is not configured")
+        if database_id in self._data_source_cache:
+            return self._data_source_cache[database_id]
+
+        data = await self._request("GET", f"/databases/{database_id}")
+        data_sources = data.get("data_sources") or []
+        if not data_sources:
+            raise NotionError(f"No data sources found for {label} database: {database_id}")
+
+        data_source_id = data_sources[0].get("id")
+        if not data_source_id:
+            raise NotionError(f"Could not resolve {label} data source id from database: {database_id}")
+
+        self._data_source_cache[database_id] = data_source_id
+        return data_source_id
+
+    async def _tracker_data_source_id(self) -> str:
+        return await self._resolve_data_source_id(
+            "issuer tracker",
+            settings.issuer_tracker_db_id,
+            settings.issuer_tracker_data_source_id,
+        )
+
+    async def _history_data_source_id(self) -> str:
+        return await self._resolve_data_source_id(
+            "issuer history",
+            settings.issuer_history_db_id,
+            settings.issuer_history_data_source_id,
+        )
+
+    async def _notes_data_source_id(self) -> str:
+        return await self._resolve_data_source_id(
+            "issuer notes",
+            settings.issuer_notes_db_id,
+            settings.issuer_notes_data_source_id,
+        )
 
     @staticmethod
     def _title(value: str) -> dict[str, Any]:
@@ -40,8 +82,17 @@ class NotionClient:
         return {"select": {"name": value}} if value else {"select": None}
 
     @staticmethod
+    def _status(value: str | None) -> dict[str, Any]:
+        return {"status": {"name": value}} if value else {"status": None}
+
+    @staticmethod
     def _multi_select(values: list[str] | None) -> dict[str, Any]:
         return {"multi_select": [{"name": v} for v in (values or [])]}
+
+    @staticmethod
+    def _service_type(values: list[str] | None) -> dict[str, Any]:
+        value = values[0] if values else None
+        return {"select": {"name": value}} if value else {"select": None}
 
     @staticmethod
     def _date(value: str | None) -> dict[str, Any]:
@@ -63,13 +114,34 @@ class NotionClient:
         return value.get("name") if value else None
 
     @staticmethod
+    def _get_status(props: dict[str, Any], name: str) -> str | None:
+        value = props.get(name, {}).get("status")
+        return value.get("name") if value else None
+
+    @staticmethod
     def _get_multi_select(props: dict[str, Any], name: str) -> list[str]:
         return [v.get("name") for v in props.get(name, {}).get("multi_select", []) if v.get("name")]
+
+    def _get_service_type(self, props: dict[str, Any], name: str) -> list[str]:
+        multi_select = self._get_multi_select(props, name)
+        if multi_select:
+            return multi_select
+        select = self._get_select(props, name)
+        return [select] if select else []
 
     @staticmethod
     def _get_date(props: dict[str, Any], name: str) -> str | None:
         value = props.get(name, {}).get("date")
         return value.get("start") if value else None
+
+    def _get_date_or_last_edited_time(self, props: dict[str, Any], name: str) -> str | None:
+        return self._get_date(props, name) or props.get(name, {}).get("last_edited_time")
+
+    @staticmethod
+    def _get_people(props: dict[str, Any], name: str) -> str | None:
+        people = props.get(name, {}).get("people", [])
+        names = [person.get("name") for person in people if person.get("name")]
+        return ", ".join(names) or None
 
     def _parse_issuer(self, page: dict[str, Any]) -> IssuerProgress:
         props = page["properties"]
@@ -78,19 +150,20 @@ class NotionClient:
             issuer_name=self._get_title(props, "Issuer Name") or "",
             issuer_oid=self._get_text(props, "Issuer OID"),
             region=self._get_select(props, "Region"),
-            service_type=self._get_multi_select(props, "Service Type"),
+            service_type=self._get_service_type(props, "Service Type"),
             current_stage=self._get_select(props, "Current Stage"),
-            progress_status=self._get_select(props, "Progress Status"),
+            progress_status=self._get_status(props, "Progress Status") or self._get_select(props, "Progress Status"),
             latest_progress=self._get_text(props, "Latest Progress"),
             next_action=self._get_text(props, "Next Action"),
             risk_level=self._get_select(props, "Risk Level"),
             blocker=self._get_text(props, "Blocker"),
-            owner=self._get_text(props, "Owner"),
-            last_update=self._get_date(props, "Last Update"),
+            owner=self._get_people(props, "Owner") or self._get_text(props, "Owner"),
+            last_update=self._get_date_or_last_edited_time(props, "Last Update"),
             go_live_date=self._get_date(props, "Go-Live Date"),
         )
 
     async def find_issuer(self, issuer_name: str) -> IssuerProgress | None:
+        data_source_id = await self._tracker_data_source_id()
         payload = {
             "filter": {
                 "property": "Issuer Name",
@@ -98,13 +171,14 @@ class NotionClient:
             },
             "page_size": 1,
         }
-        data = await self._request("POST", f"/databases/{settings.issuer_tracker_db_id}/query", payload)
+        data = await self._request("POST", f"/data_sources/{data_source_id}/query", payload)
         results = data.get("results", [])
         if not results:
             return None
         return self._parse_issuer(results[0])
 
     async def list_issuers(self, stage: str | None = None, risk_level: str | None = None) -> list[IssuerProgress]:
+        data_source_id = await self._tracker_data_source_id()
         filters = []
         if stage:
             filters.append({"property": "Current Stage", "select": {"equals": stage}})
@@ -115,26 +189,27 @@ class NotionClient:
             payload["filter"] = filters[0]
         elif len(filters) > 1:
             payload["filter"] = {"and": filters}
-        data = await self._request("POST", f"/databases/{settings.issuer_tracker_db_id}/query", payload)
+        data = await self._request("POST", f"/data_sources/{data_source_id}/query", payload)
         return [self._parse_issuer(page) for page in data.get("results", [])]
 
     async def create_issuer(self, req: IssuerCreateRequest) -> IssuerProgress:
-        today = datetime.now(timezone.utc).date().isoformat()
+        data_source_id = await self._tracker_data_source_id()
         props = {
             "Issuer Name": self._title(req.issuer_name),
             "Issuer OID": self._rich_text(req.issuer_oid),
             "Region": self._select(req.region),
-            "Service Type": self._multi_select(req.service_type),
+            "Service Type": self._service_type(req.service_type),
             "Current Stage": self._select(req.current_stage),
-            "Progress Status": self._select(req.progress_status),
+            "Progress Status": self._status(req.progress_status),
             "Latest Progress": self._rich_text(req.latest_progress),
             "Next Action": self._rich_text(req.next_action),
             "Risk Level": self._select(req.risk_level),
-            "Owner": self._rich_text(req.owner),
-            "Last Update": self._date(today),
             "Go-Live Date": self._date(req.go_live_date.isoformat() if req.go_live_date else None),
         }
-        payload = {"parent": {"database_id": settings.issuer_tracker_db_id}, "properties": props}
+        payload = {
+            "parent": {"type": "data_source_id", "data_source_id": data_source_id},
+            "properties": props,
+        }
         page = await self._request("POST", "/pages", payload)
         return self._parse_issuer(page)
 
@@ -142,17 +217,15 @@ class NotionClient:
         issuer = await self.find_issuer(issuer_name)
         if not issuer:
             raise NotionError(f"Issuer not found: {issuer_name}")
-        today = datetime.now(timezone.utc).date().isoformat()
         old_stage = issuer.current_stage
         new_stage = req.current_stage or issuer.current_stage
         props: dict[str, Any] = {
             "Latest Progress": self._rich_text(req.latest_progress),
-            "Last Update": self._date(today),
         }
         if req.current_stage:
             props["Current Stage"] = self._select(req.current_stage)
         if req.progress_status:
-            props["Progress Status"] = self._select(req.progress_status)
+            props["Progress Status"] = self._status(req.progress_status)
         if req.next_action is not None:
             props["Next Action"] = self._rich_text(req.next_action)
         if req.risk_level:
@@ -187,6 +260,7 @@ class NotionClient:
         risk_level: str | None,
         updated_by: str,
     ) -> dict[str, Any]:
+        data_source_id = await self._history_data_source_id()
         today = datetime.now(timezone.utc).date().isoformat()
         props = {
             "Name": self._title(f"{issuer_name} - {today}"),
@@ -199,11 +273,16 @@ class NotionClient:
             "Risk Level": self._select(risk_level),
             "Updated By": self._rich_text(updated_by),
         }
-        return await self._request("POST", "/pages", {"parent": {"database_id": settings.issuer_history_db_id}, "properties": props})
+        return await self._request(
+            "POST",
+            "/pages",
+            {"parent": {"type": "data_source_id", "data_source_id": data_source_id}, "properties": props},
+        )
 
     async def add_note(self, issuer_name: str, req: NoteCreateRequest) -> dict[str, Any]:
-        if not settings.issuer_notes_db_id:
+        if not settings.issuer_notes_db_id and not settings.issuer_notes_data_source_id:
             raise NotionError("ISSUER_NOTES_DB_ID is not configured")
+        data_source_id = await self._notes_data_source_id()
         issuer = await self.find_issuer(issuer_name)
         if not issuer:
             raise NotionError(f"Issuer not found: {issuer_name}")
@@ -216,4 +295,8 @@ class NotionClient:
             "Source Date": self._date(source_date),
             "Created By": self._rich_text(req.created_by),
         }
-        return await self._request("POST", "/pages", {"parent": {"database_id": settings.issuer_notes_db_id}, "properties": props})
+        return await self._request(
+            "POST",
+            "/pages",
+            {"parent": {"type": "data_source_id", "data_source_id": data_source_id}, "properties": props},
+        )

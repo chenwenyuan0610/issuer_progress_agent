@@ -9,34 +9,28 @@
 | Issuer Name | Title | Kpay |
 | Issuer OID | Text | 9 |
 | Region | Select | TH |
-| Service Type | Multi-select | ACS, OOB |
+| Service Type | Select | Onboarding |
 | Current Stage | Select | UI Confirming |
-| Progress Status | Select | In Progress |
+| Progress Status | Status | In progress |
 | Latest Progress | Text | 接口問題已解決，目前等待客戶確認 UI |
 | Next Action | Text | 等待客戶回覆 UI 確認結果 |
 | Risk Level | Select | Medium |
 | Blocker | Text | UI 尚未確認 |
-| Owner | Text | Diego |
-| Last Update | Date | 2026-06-07 |
+| Owner | People | Diego |
+| Last Update | Last edited time | 2026-06-07 |
 | Go-Live Date | Date | 2026-07-01 |
 
 ### Current Stage options
-- Not Started
-- Requirement Confirming
-- UI Confirming
-- API Integration
-- SIT
-- SIT Completed
-- UAT
-- UAT Completed
-- Go-Live Preparation
-- Production
-- Suspended
-- Closed
+- Discovery
+- Planning
+- Implementation
+- Testing
+- Go-Live
+- Post Go-Live
 
 ### Progress Status options
-- Not Started
-- In Progress
+- Not started
+- In progress
 - Blocked
 - Done
 

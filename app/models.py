@@ -3,31 +3,25 @@ from typing import Optional, Literal
 from pydantic import BaseModel, Field
 
 Stage = Literal[
-    "Not Started",
-    "Requirement Confirming",
-    "UI Confirming",
-    "API Integration",
-    "SIT",
-    "SIT Completed",
-    "UAT",
-    "UAT Completed",
-    "Go-Live Preparation",
-    "Production",
-    "Suspended",
-    "Closed",
+    "Discovery",
+    "Planning",
+    "Implementation",
+    "Testing",
+    "Go-Live",
+    "Post Go-Live",
 ]
 
 RiskLevel = Literal["Low", "Medium", "High"]
-ProgressStatus = Literal["Not Started", "In Progress", "Blocked", "Done"]
+ProgressStatus = Literal["Not started", "In progress", "Blocked", "Done"]
 
 
 class IssuerCreateRequest(BaseModel):
     issuer_name: str = Field(..., examples=["Kpay"])
     issuer_oid: Optional[str] = None
     region: Optional[str] = None
-    service_type: list[str] = Field(default_factory=lambda: ["ACS"])
-    current_stage: Stage = "Not Started"
-    progress_status: ProgressStatus = "Not Started"
+    service_type: list[str] = Field(default_factory=lambda: ["Onboarding"])
+    current_stage: Stage = "Discovery"
+    progress_status: ProgressStatus = "Not started"
     latest_progress: Optional[str] = None
     next_action: Optional[str] = None
     risk_level: RiskLevel = "Low"
