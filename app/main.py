@@ -10,8 +10,17 @@ app = FastAPI(
 )
 
 
-def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
-    if settings.api_key and x_api_key != settings.api_key:
+def require_api_key(
+    x_api_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+) -> None:
+    if not settings.api_key:
+        return
+
+    bearer_prefix = "Bearer "
+    bearer_token = authorization[len(bearer_prefix) :] if authorization and authorization.startswith(bearer_prefix) else None
+
+    if x_api_key != settings.api_key and bearer_token != settings.api_key:
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 
@@ -36,9 +45,9 @@ async def create_issuer(req: IssuerCreateRequest, client: NotionClient = Depends
 
 
 @app.get("/issuers", dependencies=[Depends(require_api_key)])
-async def list_issuers(stage: str | None = None, risk_level: str | None = None, client: NotionClient = Depends(notion)):
+async def list_issuers(stage: str | None = None, client: NotionClient = Depends(notion)):
     try:
-        return await client.list_issuers(stage=stage, risk_level=risk_level)
+        return await client.list_issuers(stage=stage)
     except NotionError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
@@ -87,5 +96,5 @@ async def weekly_report(client: NotionClient = Depends(notion)):
         "title": "Issuer Weekly Progress Report",
         "total_issuers": len(issuers),
         "groups": groups,
-        "summary_hint": "Let the AI Agent summarize groups by stage, risk, next action, and blockers.",
+        "summary_hint": "Let the AI Agent summarize groups by stage, next action, and blockers.",
     }

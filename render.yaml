@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: issuer-progress-agent
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: NOTION_TOKEN
+        sync: false
+      - key: NOTION_VERSION
+        value: "2026-03-11"
+      - key: ISSUER_TRACKER_DB_ID
+        sync: false
+      - key: ISSUER_TRACKER_DATA_SOURCE_ID
+        sync: false
+      - key: ISSUER_HISTORY_DB_ID
+        sync: false
+      - key: ISSUER_HISTORY_DATA_SOURCE_ID
+        sync: false
+      - key: ISSUER_NOTES_DB_ID
+        sync: false
+      - key: ISSUER_NOTES_DATA_SOURCE_ID
+        sync: false
+      - key: API_KEY
+        sync: false

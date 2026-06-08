@@ -14,9 +14,8 @@
 | Progress Status | Status | In progress |
 | Latest Progress | Text | 接口問題已解決，目前等待客戶確認 UI |
 | Next Action | Text | 等待客戶回覆 UI 確認結果 |
-| Risk Level | Select | Medium |
 | Blocker | Text | UI 尚未確認 |
-| Owner | People | Diego |
+| Owner | Text | Diego |
 | Last Update | Last edited time | 2026-06-07 |
 | Go-Live Date | Date | 2026-07-01 |
 
@@ -34,11 +33,6 @@
 - Blocked
 - Done
 
-### Risk Level options
-- Low
-- Medium
-- High
-
 ## 2. Issuer Progress History
 
 | Property | Type | Example |
@@ -50,7 +44,6 @@
 | New Stage | Select | SIT |
 | Change Note | Text | UI 已確認，準備進 SIT |
 | Next Action | Text | 安排 SIT 測試與確認交易流程 |
-| Risk Level | Select | Low |
 | Updated By | Text | Diego |
 
 ## 3. Issuer Notes

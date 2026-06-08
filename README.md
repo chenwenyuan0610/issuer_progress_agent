@@ -12,7 +12,7 @@
 2. 查詢發卡行目前進度
 3. 更新發卡行進度
 4. 自動寫入進度歷史紀錄
-5. 依 stage / risk 查詢
+5. 依 stage 查詢
 6. 產生週報原始資料
 7. 新增會議 / Email / Issue note
 
@@ -65,7 +65,6 @@ curl -X POST http://localhost:8080/issuers \
     "progress_status": "In Progress",
     "latest_progress": "接口問題已解決，目前等待客戶確認 UI",
     "next_action": "等待客戶回覆 UI 確認結果",
-    "risk_level": "Medium",
     "owner": "Diego"
   }'
 ```
@@ -88,7 +87,7 @@ curl -X PATCH http://localhost:8080/issuers/Kpay/progress \
     "progress_status": "In Progress",
     "latest_progress": "UI 已確認，準備進 SIT",
     "next_action": "安排 SIT 測試與確認交易流程",
-    "risk_level": "Low",
+    "owner": "Diego",
     "updated_by": "Diego"
   }'
 ```

@@ -72,7 +72,7 @@ TOOLS = [
     {
         "type": "function",
         "name": "listIssuers",
-        "description": "List issuer progress records, optionally filtered by stage or risk level.",
+        "description": "List issuer progress records, optionally filtered by stage.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -80,7 +80,6 @@ TOOLS = [
                     "type": "string",
                     "enum": ["Discovery", "Planning", "Implementation", "Testing", "Go-Live", "Post Go-Live"],
                 },
-                "risk_level": {"type": "string", "enum": ["Low", "Medium", "High"]},
             },
             "additionalProperties": False,
         },
@@ -123,7 +122,7 @@ TOOLS = [
                 "progress_status": {"type": "string", "enum": ["Not started", "In progress", "Blocked", "Done"]},
                 "latest_progress": {"type": "string"},
                 "next_action": {"type": "string"},
-                "risk_level": {"type": "string", "enum": ["Low", "Medium", "High"]},
+                "owner": {"type": "string"},
                 "go_live_date": {"type": "string", "description": "ISO date, e.g. 2026-07-01"},
             },
             "required": ["issuer_name"],
@@ -145,8 +144,8 @@ TOOLS = [
                 "progress_status": {"type": "string", "enum": ["Not started", "In progress", "Blocked", "Done"]},
                 "latest_progress": {"type": "string"},
                 "next_action": {"type": "string"},
-                "risk_level": {"type": "string", "enum": ["Low", "Medium", "High"]},
                 "blocker": {"type": "string"},
+                "owner": {"type": "string"},
                 "updated_by": {"type": "string"},
             },
             "required": ["issuer_name", "latest_progress"],

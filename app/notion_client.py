@@ -155,7 +155,6 @@ class NotionClient:
             progress_status=self._get_status(props, "Progress Status") or self._get_select(props, "Progress Status"),
             latest_progress=self._get_text(props, "Latest Progress"),
             next_action=self._get_text(props, "Next Action"),
-            risk_level=self._get_select(props, "Risk Level"),
             blocker=self._get_text(props, "Blocker"),
             owner=self._get_people(props, "Owner") or self._get_text(props, "Owner"),
             last_update=self._get_date_or_last_edited_time(props, "Last Update"),
@@ -177,13 +176,11 @@ class NotionClient:
             return None
         return self._parse_issuer(results[0])
 
-    async def list_issuers(self, stage: str | None = None, risk_level: str | None = None) -> list[IssuerProgress]:
+    async def list_issuers(self, stage: str | None = None) -> list[IssuerProgress]:
         data_source_id = await self._tracker_data_source_id()
         filters = []
         if stage:
             filters.append({"property": "Current Stage", "select": {"equals": stage}})
-        if risk_level:
-            filters.append({"property": "Risk Level", "select": {"equals": risk_level}})
         payload: dict[str, Any] = {"page_size": 100}
         if len(filters) == 1:
             payload["filter"] = filters[0]
@@ -203,7 +200,7 @@ class NotionClient:
             "Progress Status": self._status(req.progress_status),
             "Latest Progress": self._rich_text(req.latest_progress),
             "Next Action": self._rich_text(req.next_action),
-            "Risk Level": self._select(req.risk_level),
+            "Owner": self._rich_text(req.owner),
             "Go-Live Date": self._date(req.go_live_date.isoformat() if req.go_live_date else None),
         }
         payload = {
@@ -228,10 +225,10 @@ class NotionClient:
             props["Progress Status"] = self._status(req.progress_status)
         if req.next_action is not None:
             props["Next Action"] = self._rich_text(req.next_action)
-        if req.risk_level:
-            props["Risk Level"] = self._select(req.risk_level)
         if req.blocker is not None:
             props["Blocker"] = self._rich_text(req.blocker)
+        if req.owner is not None:
+            props["Owner"] = self._rich_text(req.owner)
 
         await self._request("PATCH", f"/pages/{issuer.page_id}", {"properties": props})
         await self.add_history(
@@ -241,7 +238,6 @@ class NotionClient:
             new_stage=new_stage,
             change_note=req.latest_progress,
             next_action=req.next_action,
-            risk_level=req.risk_level or issuer.risk_level,
             updated_by=req.updated_by,
         )
         updated = await self.find_issuer(issuer_name)
@@ -257,7 +253,6 @@ class NotionClient:
         new_stage: str | None,
         change_note: str,
         next_action: str | None,
-        risk_level: str | None,
         updated_by: str,
     ) -> dict[str, Any]:
         data_source_id = await self._history_data_source_id()
@@ -270,7 +265,6 @@ class NotionClient:
             "New Stage": self._select(new_stage),
             "Change Note": self._rich_text(change_note),
             "Next Action": self._rich_text(next_action),
-            "Risk Level": self._select(risk_level),
             "Updated By": self._rich_text(updated_by),
         }
         return await self._request(

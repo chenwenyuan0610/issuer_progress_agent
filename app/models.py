@@ -11,7 +11,6 @@ Stage = Literal[
     "Post Go-Live",
 ]
 
-RiskLevel = Literal["Low", "Medium", "High"]
 ProgressStatus = Literal["Not started", "In progress", "Blocked", "Done"]
 
 
@@ -24,7 +23,6 @@ class IssuerCreateRequest(BaseModel):
     progress_status: ProgressStatus = "Not started"
     latest_progress: Optional[str] = None
     next_action: Optional[str] = None
-    risk_level: RiskLevel = "Low"
     owner: Optional[str] = None
     go_live_date: Optional[date] = None
 
@@ -34,8 +32,8 @@ class ProgressUpdateRequest(BaseModel):
     progress_status: Optional[ProgressStatus] = None
     latest_progress: str
     next_action: Optional[str] = None
-    risk_level: Optional[RiskLevel] = None
     blocker: Optional[str] = None
+    owner: Optional[str] = None
     updated_by: str = "AI Agent"
 
 
@@ -57,7 +55,6 @@ class IssuerProgress(BaseModel):
     progress_status: Optional[str] = None
     latest_progress: Optional[str] = None
     next_action: Optional[str] = None
-    risk_level: Optional[str] = None
     blocker: Optional[str] = None
     owner: Optional[str] = None
     last_update: Optional[str] = None

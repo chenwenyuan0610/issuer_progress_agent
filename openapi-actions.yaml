@@ -1,17 +1,149 @@
-openapi: 3.1.0
+﻿openapi: 3.1.0
 info:
   title: Issuer Progress AI Tool API
   version: 0.1.0
 servers:
-  - url: https://YOUR_DOMAIN_HERE
+  - url: https://popcorn-unclog-wilder.ngrok-free.dev
 components:
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
       in: header
       name: x-api-key
+    BearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    IssuerCreateRequest:
+      type: object
+      properties:
+        issuer_name:
+          type: string
+          description: Issuer display name.
+        issuer_oid:
+          type: string
+        region:
+          type: string
+        service_type:
+          type: array
+          items:
+            type: string
+        current_stage:
+          type: string
+          enum:
+            - Discovery
+            - Planning
+            - Implementation
+            - Testing
+            - Go-Live
+            - Post Go-Live
+        progress_status:
+          type: string
+          enum:
+            - Not started
+            - In progress
+            - Blocked
+            - Done
+        latest_progress:
+          type: string
+        next_action:
+          type: string
+        owner:
+          type: string
+        go_live_date:
+          type: string
+          format: date
+      required:
+        - issuer_name
+    ProgressUpdateRequest:
+      type: object
+      properties:
+        current_stage:
+          type: string
+          enum:
+            - Discovery
+            - Planning
+            - Implementation
+            - Testing
+            - Go-Live
+            - Post Go-Live
+        progress_status:
+          type: string
+          enum:
+            - Not started
+            - In progress
+            - Blocked
+            - Done
+        latest_progress:
+          type: string
+        next_action:
+          type: string
+        blocker:
+          type: string
+        owner:
+          type: string
+          description: Person or team currently responsible for this issuer project.
+        updated_by:
+          type: string
+      required:
+        - latest_progress
+    NoteCreateRequest:
+      type: object
+      properties:
+        note_type:
+          type: string
+          enum:
+            - Meeting
+            - Email
+            - Issue
+            - Requirement
+            - Other
+        title:
+          type: string
+        content:
+          type: string
+        source_date:
+          type: string
+          format: date
+        created_by:
+          type: string
+      required:
+        - title
+        - content
+    IssuerProgress:
+      type: object
+      properties:
+        page_id:
+          type: string
+        issuer_name:
+          type: string
+        issuer_oid:
+          type: string
+        region:
+          type: string
+        service_type:
+          type: array
+          items:
+            type: string
+        current_stage:
+          type: string
+        progress_status:
+          type: string
+        latest_progress:
+          type: string
+        next_action:
+          type: string
+        blocker:
+          type: string
+        owner:
+          type: string
+        last_update:
+          type: string
+        go_live_date:
+          type: string
 security:
   - ApiKeyAuth: []
+  - BearerAuth: []
 paths:
   /issuers/{issuer_name}:
     get:
@@ -26,17 +158,16 @@ paths:
       responses:
         '200':
           description: Issuer progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuerProgress'
   /issuers:
     get:
       operationId: listIssuers
-      summary: List issuers, optionally filtered by stage or risk level
+      summary: List issuers, optionally filtered by stage
       parameters:
         - name: stage
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: risk_level
           in: query
           required: false
           schema:
@@ -44,6 +175,12 @@ paths:
       responses:
         '200':
           description: Issuer list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IssuerProgress'
     post:
       operationId: createIssuer
       summary: Create an issuer
@@ -52,10 +189,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: '#/components/schemas/IssuerCreateRequest'
       responses:
         '200':
           description: Created issuer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuerProgress'
   /issuers/{issuer_name}/progress:
     patch:
       operationId: updateIssuerProgress
@@ -71,27 +212,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                current_stage:
-                  type: string
-                progress_status:
-                  type: string
-                latest_progress:
-                  type: string
-                next_action:
-                  type: string
-                risk_level:
-                  type: string
-                blocker:
-                  type: string
-                updated_by:
-                  type: string
-              required:
-                - latest_progress
+              $ref: '#/components/schemas/ProgressUpdateRequest'
       responses:
         '200':
           description: Updated issuer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuerProgress'
   /issuers/{issuer_name}/notes:
     post:
       operationId: addIssuerNote
@@ -107,10 +235,19 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: '#/components/schemas/NoteCreateRequest'
       responses:
         '200':
           description: Created note
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  page_id:
+                    type: string
   /reports/weekly:
     get:
       operationId: generateWeeklyReport
@@ -118,3 +255,4 @@ paths:
       responses:
         '200':
           description: Weekly report data
+
